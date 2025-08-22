@@ -1,1 +1,0 @@
-# isYapildi-blitzztrading-prismax
