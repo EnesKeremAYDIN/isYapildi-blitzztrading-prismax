@@ -11,9 +11,10 @@
   'use strict';
 
   const SCAN_INTERVAL_MS = 100;
-  const CLICK_DELAY_MS = [1000, 3000];
-  const HOLD_MS = [1000, 3000];
-  const GAP_MS = [0, 1000];
+  const CLICK_DELAY_MS = [500, 3000];
+  const HOLD_MS = [3000, 7000];
+  const GAP_MS = [0, 500];
+  const REFRESH_COOLDOWN_MS = 5 * 60 * 1000;
 
   const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
   const randRange = ([min, max]) => rand(min, max);
@@ -72,8 +73,39 @@
     return btn || null;
   }
 
+  function checkQueueAndRefresh() {
+    try {
+      const queueText = document.querySelector('div.QueuePanel_timeText__dRQ6x');
+      if (!queueText) return;
+
+      const text = queueText.textContent || '';
+      if (text.includes("You are now in the queue") && text.includes("users in front of you")) {
+        const span = queueText.querySelector('span');
+        if (span) {
+          const userCount = parseInt(span.textContent);
+          if (userCount === 0) {
+            const lastRefresh = localStorage.getItem('last_refresh');
+            const now = Date.now();
+            
+            if (!lastRefresh || (now - parseInt(lastRefresh)) >= REFRESH_COOLDOWN_MS) {
+              localStorage.setItem('last_refresh', now.toString());
+              setTimeout(() => {
+                window.location.reload();
+              }, 1000);
+            } else {
+              const remainingTime = Math.ceil((REFRESH_COOLDOWN_MS - (now - parseInt(lastRefresh))) / 1000);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[Prismax Auto Enter] Sıra kontrolü hatası:', e);
+    }
+  }
+
   async function scannerLoop() {
     try {
+      checkQueueAndRefresh();
       const btn = findEnterButton();
       if (btn && !clickPending) {
         clickPending = true;
@@ -110,7 +142,6 @@
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       typingEnabled = !typingEnabled;
-      console.log(`[Prismax Auto Enter] Typing ${typingEnabled ? 'başladı' : 'durdu'}.`);
     }
   });
 
@@ -120,6 +151,4 @@
 
   setInterval(scannerLoop, SCAN_INTERVAL_MS);
   typingLoop();
-
-  console.log('[Prismax Auto Enter] Çalışıyor. ESC ile yazmayı durdur/başlat.');
 })();
